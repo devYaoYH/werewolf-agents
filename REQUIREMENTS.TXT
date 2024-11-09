@@ -3,7 +3,6 @@ certifi==2024.8.30
 charset-normalizer==3.4.0
 docker==7.1.0
 idna==3.10
-install==0.0.1
 Jinja2==3.1.4
 MarkupSafe==3.0.2
 pydantic==2.9.2
