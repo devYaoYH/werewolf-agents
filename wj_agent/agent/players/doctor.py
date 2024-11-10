@@ -73,4 +73,4 @@ class Doctor(Player):
             ],
         )
         response_text = response.choices[0].message.content
-        return ActivityResponse(response=response_text)
+        return response_text
