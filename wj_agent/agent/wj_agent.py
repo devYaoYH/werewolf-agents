@@ -94,7 +94,7 @@ class WJAgent(IReactiveAgent):
         self.consensus_gamma = 0.9 # Score decay
         self.consensus_self_discount = 0.1 # Discount own defense
         # {player_name: wolf_consensus_val in (-1: human | 1: wolf)
-        self.consensus = dict()
+        self.consensus = defaultdict(float)
 
     def _init_extract_player_names(self, message):
         # Find the list using regex
@@ -112,24 +112,26 @@ class WJAgent(IReactiveAgent):
     def _get_sentiment_score(self, player_name, message):
         """Return a number between -1 to 1."""
         prompt = f"""
-Extract all information about {player_name} and provide a score for this message between -1 to 1 where -1 represents strongly supporting {player_name} as a human and 1 strongly accusing {player_name} to be a wolf. Provide your output as a single number.
+{self.game_intro}
 
 {message}
+
+Extract all information about {player_name} and provide a score for this message between -1 to 1 where -1 represents strongly supporting {player_name} as a human and 1 strongly accusing {player_name} to be a wolf. Provide your output as a single number.
         """
 
         response = self.openai_client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": f"You are a analyst of a Werewolf game as described by {self.game_intro}"},
+                {"role": "system", "content": f"You are a analyst of a Werewolf game"},
                 {"role": "user", "content": prompt}
             ]
         )
         sentiment_response = response.choices[0].message.content
 
-        logger.info(f"Sentiment Score for {player_name}: {sentiment_response}")
-
-        pattern = r"\d+\.\d+"
+        pattern = r"-?\d+\.?\d?"
         matches = re.findall(pattern, sentiment_response)
+
+        logger.info(f"\nSentiment for {player_name}: {sentiment_response}\n    Score: {matches}")
 
         if len(matches) > 0:
             return float(matches[0])
@@ -235,11 +237,10 @@ Extract all information about {player_name} and provide a score for this message
                 logger.error(f"Unknown message channel type: {message.header.channel_type}")
 
         # Belief state updates
-        if message.header.channel_type != MessageChannelType.DIRECT:
+        if message.header.channel_type != MessageChannelType.DIRECT and message.header.sender != self.MODERATOR_NAME:
             # Update the list of players in the game
             # TODO: Remove players who are eliminated
-            if message.header.sender != self.MODERATOR_NAME:
-                self.game_players.add(message.header.sender)
+            self.game_players.add(message.header.sender)
             if message.header.channel == self.WOLFS_CHANNEL and message.header.sender == self.MODERATOR_NAME:
                 self.game_alive_humans = self._init_extract_player_names(message.content.text)
             for player in self.game_players:

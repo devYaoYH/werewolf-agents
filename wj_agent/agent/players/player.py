@@ -66,13 +66,8 @@ class Player:
         system_prompt = f"""You are an expert at analysis, you are given an input message "<><><><><><><><>THE INPUT MESSAGE IS STARTING<><><><><><><><>" and ends with "<><><><><><><><>THE INPUT MESSAGE IS ENDING<><><><><><><><>". 
         Your task is to identify the players who are being accused of being a werewolf, return the accused players as a string separated by ","
 
-        There are 2 expected output formats:
-        
-        EXPECTED_OUTPUT_FORMAT_1:
+        EXPECTED_OUTPUT_FORMAT:
         "<player1>,<player2>,<player3>"
-
-        EXPECTED_OUTPUT_FORMAT_2:
-        ""
         """
 
         logger.info(f"Processing player message: {message}")

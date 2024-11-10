@@ -22,8 +22,8 @@ class Wolf(Player):
     Given the game history, you are to pick someone to kill."""
 
 
-    def __init__(self, name: str, description: str, config: dict, model, openai_client):
-        super().__init__(name, description, config, model, openai_client)
+    def __init__(self, name: str, description: str, config: dict, model, openai_client, agent):
+        super().__init__(name, description, config, model, openai_client, agent)
 
     async def async_respond(self, message: ActivityMessage, villagers_game_history: list):
         """

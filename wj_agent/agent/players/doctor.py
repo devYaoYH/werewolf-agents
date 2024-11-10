@@ -16,8 +16,8 @@ class Doctor(Player):
     DOCTOR_PROMPT = """You are the doctor in a game of Werewolf. Your ability is to protect one player from elimination each night. Consider the following:
     You are given the game history, and you are to pick someone to save, do not save who you think is werewolf."""
 
-    def __init__(self, name: str, description: str, config: dict, model, openai_client):
-        super().__init__(name, description, config, model, openai_client)
+    def __init__(self, name: str, description: str, config: dict, model, openai_client, agent):
+        super().__init__(name, description, config, model, openai_client, agent)
 
     async def async_respond(self, message: ActivityMessage, villagers_game_history: list):
         """

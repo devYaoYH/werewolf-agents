@@ -20,8 +20,8 @@ class Villager(Player):
     3. Be cautious of false accusations.
     4. Try to identify the seer and doctor to protect them."""
 
-    def __init__(self, name: str, description: str, config: dict, model, openai_client):
-        super().__init__(name, description, config, model, openai_client)
+    def __init__(self, name: str, description: str, config: dict, model, openai_client, agent):
+        super().__init__(name, description, config, model, openai_client, agent)
 
 
     async def async_vote(self):
