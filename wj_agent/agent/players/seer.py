@@ -52,6 +52,7 @@ class Seer(Player):
                 {"role": "user", "content": message.content.text}
             ],
         )
+        return response.choices[0].message.content
 
     async def seer_response(self, message: ActivityMessage, villagers_game_history: list):
 
@@ -76,4 +77,4 @@ class Seer(Player):
         )
 
         response_text = response.choices[0].message.content
-        return ActivityResponse(response=response_text)
+        return response_text
