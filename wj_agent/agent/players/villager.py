@@ -43,7 +43,7 @@ class Villager(Player):
 #        logger.info(f"ASYNC RESPOND called with message: {message}")
 
         if message.content.text.lower().strip().startswith("day vote"):
-            return self.async_vote(self)
+            return self.async_vote()
 
 
         specific_prompt = """You are a villager in a conversational game of Werewolf, also known as Mafia. You are given the sequence of events in the game, and you are use the information to select who you think is the werewolf.""" 
