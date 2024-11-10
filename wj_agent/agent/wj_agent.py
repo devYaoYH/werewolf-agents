@@ -82,6 +82,70 @@ class WJAgent(IReactiveAgent):
             f"WerewolfAgent initialized with name: {name}, description: {description}, and config: {config}"
         )
         self.game_intro = None
+
+        # Overall state
+        self.game_players = set() # list of other players
+        self.game_alive_players = []
+        self.known_player_roles = dict()
+
+        # Belief Updates Variables
+        self.num_game_messages = 0
+        self.consensus_gamma = 0.9 # Score decay
+        self.consensus_self_discount = 0.1 # Discount own defense
+        # {player_name: wolf_consensus_val in (-1: human | 1: wolf)
+        self.consensus = dict()
+
+    def _init_extract_player_names(self, message):
+        # Find the list using regex
+        match = re.search(r"\[(.*?)\]", message)
+
+        if match:
+            player_list = eval(match.group(1))
+            logger.info(player_list)
+            return player_list
+        else:
+            logger.info("List not found")
+            return []
+
+
+    def _get_sentiment_score(self, player_name, message):
+        """Return a number between -1 to 1."""
+        prompt = f"""
+Extract all information about {player_name} and provide a score for this message between -1 to 1 where -1 represents strongly supporting {player_name} as a human and 1 strongly accusing {player_name} to be a wolf. Provide your output as a single number.
+
+{message}
+        """
+
+        response = self.openai_client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": f"You are a analyst of a Werewolf game as described by {self.game_intro}"},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        sentiment_response = response.choices[0].message.content
+
+        logger.info(f"Sentiment Score for {player_name}: {sentiment_response}")
+
+        pattern = r"\d+\.\d+"
+        matches = re.findall(pattern, sentiment_response)
+
+        if len(matches) > 0:
+            return float(matches[0])
+        else:
+            return 0
+
+    def _update_consensus_score(self, player_name, message, message_sender):
+        self.num_game_messages += 1
+        cur_score = self.consensus[player_name]
+        new_score = self._get_sentiment_score(player_name, message)
+        if message_sender == player_name:
+            new_score *= self.consensus_self_discount
+        self.consensus[player_name] = (cur_score*(self.num_game_messages-1) + new_score )/self.num_game_messages
+
+    def _decay_consensus_score(self):
+        for k in self.consensus:
+            self.consensus[k] *= self.consensus_gamma
     
     @retry(
         retry=retry_if_exception_type((openai.InternalServerError, RateLimitError)),
