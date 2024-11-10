@@ -5,7 +5,7 @@ from agent.players.doctor import Doctor
 from agent.players.seer import Seer
 from agent.players.player import Player
 from agent.players.game_state import GameState
-
+from agent.players.helper_functions import get_players, get_role, get_dead_player
 import os,json,re
 import asyncio
 import logging
@@ -201,7 +201,12 @@ Extract all information about {player_name} and provide a score for this message
                         elif message.content.text.lower().startswith("day consensus"):
                             self.process_message = False
                         elif message.content.text.lower().startswith("day end"):
+
                             self._update_alive_players(message.content.text)
+
+                            player,role = get_role(message.content.text)
+                            self.known_player_roles[player] = role
+
                         await self.villager.add_to_game_history(message)
                     else:
                         if not self.process_message:

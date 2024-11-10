@@ -3,6 +3,32 @@ import re
 def clean_string(text):
     return ''.join(char for char in text if char.isalnum() or char in ".,!?-_'\"():; ")
 
+def get_players(players):
+    lines = players.split("\n")
+
+    for line in lines:
+        if line.strip().lower().startswith('here is the list of your fellow player'):
+            line = ''.join(line.split("-")[1:])
+            cleaned = line.strip('[]').split(',')
+            # Clean each name and filter empty strings
+            return [name.strip().strip("'") for name in cleaned if name.strip()]
+
+def get_role(message):
+    lines = message.split("\n")
+
+    for line in lines:
+        if line.strip().lower().startswith('day elimination'):
+            player = line.split()[5].strip("'")
+            role = line.split()[-1].strip(".").strip("'")
+            return player, role
+
+def get_dead_player(message):
+    lines = message.split("\n")
+
+    for line in lines:
+        if line.strip().lower().startswith('villager dead'):
+            return ''.join(line.split("->")[1:]).strip().strip("'")
+
 def contextualise_message(message: str):
 
     cleaned_message = clean_string(message)
