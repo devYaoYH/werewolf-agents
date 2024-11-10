@@ -34,6 +34,13 @@ class Wolf(Player):
         return ActivityResponse(response=response)
     
     async def get_wolf_guess(self, message: ActivityMessage, villagers_game_history: list):
+        if len(self.agent.game_alive_humans) > 0:
+            chosen_player = random.choice(self.agent.game_alive_humans)
+            wolf_score, player = sorted([(self.agent.consensus[player_name], player_name) for player_name in game_alive_players])
+            if len(game_alive_players) > 0:
+                logger.info(f"Voting for {player} | {wolf_score:.5f}")
+                chosen_player = player
+            return f"{chosen_player}"
 
         response = self.openai_client.chat.completions.create(
             model=self.model,

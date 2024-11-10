@@ -32,7 +32,7 @@ class Villager(Player):
         if len(game_alive_players) > 0:
             logger.info(f"Voting for {player} | {wolf_score:.5f}")
             chosen_player = player
-        return f"I vote to eliminate {player}"
+        return f"I vote to eliminate {chosen_player}"
 
 
     async def async_respond(self, message: ActivityMessage):
