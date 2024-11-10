@@ -24,12 +24,19 @@ class Villager(Player):
         super().__init__(name, description, config, model, openai_client)
 
 
+    async def async_vote(self):
+        return random.choice(self.agent.game_alive_players)
+
+
     async def async_respond(self, message: ActivityMessage):
         """
         Should never be a direct message, only group messages
         """
 
 #        logger.info(f"ASYNC RESPOND called with message: {message}")
+
+        if message.content.text.lower().strip().startsWith("day vote"):
+            return self.async_vote(self)
 
 
         specific_prompt = """You are a villager in a conversational game of Werewolf, also known as Mafia. You are given the sequence of events in the game, and you are use the information to select who you think is the werewolf.""" 

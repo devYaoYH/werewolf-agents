@@ -37,7 +37,9 @@ logger.addHandler(handler)
 
 class Player:
 
-    def __init__(self, name: str, description: str, config: dict, model, openai_client):
+    def __init__(self, name: str, description: str, config: dict, model, openai_client, agent=None):
+        if agent:
+            self.agent = agent
         self._name = name
         self._description = description
         self.config = config

@@ -158,17 +158,18 @@ Extract all information about {player_name} and provide a score for this message
         if message.header.channel == self.GAME_CHANNEL and message.header.sender == self.MODERATOR_NAME and not self.game_intro:
             #game intro
             self.game_intro = message.content.text
+            self.game_players.update(self._init_extract_player_names(self.game_intro))
 
         if message.header.channel_type == MessageChannelType.DIRECT and message.header.sender == self.MODERATOR_NAME and not self.villager:
             self.role = self.find_my_role(message)
             logger.info(f"Role found for user {self._name}: {self.role}")
-            self.villager = Villager(self._name, self._description, self.config, self.model, self.openai_client)
+            self.villager = Villager(self._name, self._description, self.config, self.model, self.openai_client, agent=self)
             if self.role == "seer":
-                self.seer = Seer(self._name, self._description, self.config, self.model, self.openai_client)
+                self.seer = Seer(self._name, self._description, self.config, self.model, self.openai_client, agent=self)
             elif self.role == "doctor":
-                self.doctor = Doctor(self._name, self._description, self.config, self.model, self.openai_client)
+                self.doctor = Doctor(self._name, self._description, self.config, self.model, self.openai_client, agent=self)
             else:
-                self.wolf = Wolf(self._name, self._description, self.config, self.model, self.openai_client)
+                self.wolf = Wolf(self._name, self._description, self.config, self.model, self.openai_client, agent=self)
         
         if self.villager:
             logger.info(f"ASYNC NOTIFY called with message: {message}")
@@ -215,6 +216,17 @@ Extract all information about {player_name} and provide a score for this message
 
             else:
                 logger.error(f"Unknown message channel type: {message.header.channel_type}")
+
+        # Belief state updates
+        if message.header.channel_type != MessageChannelType.DIRECT:
+            # Update the list of players in the game
+            # TODO: Remove players who are eliminated
+            if message.header.sender != self.MODERATOR_NAME:
+                self.game_players.add(message.header.sender)
+            if message.header.channel == self.WOLFS_CHANNEL and message.header.sender == self.MODERATOR_NAME:
+                self.game_alive_players = self._init_extract_player_names(message.content.text)
+            for player in self.game_players:
+                self._update_consensus_score(player, message.content.text, message.header.sender)
 
     def find_my_role(self, message):
         response = self.openai_client.chat.completions.create(
