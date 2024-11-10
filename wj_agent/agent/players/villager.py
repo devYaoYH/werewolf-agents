@@ -41,42 +41,11 @@ class Villager(Player):
                     "role": "system",
                     "content": specific_prompt
                 },
+                {"role": "user", "content": self.game_history},
+                {"role": "user", "content": "Use the game history to vote for who you think is the werewolf. You must vote for someone, if you refuse to vote you will be penalized."},
                 {"role": "user", "content": message.content.text}
             ],
         )
  
         response_text = response.choices[0].message.content
         return ActivityResponse(response=response_text)
-
-    def _get_discussion_message_or_vote_response_for_common_room(self, message):
-        
-        specific_prompt = """Use the game history to share your thoughts on who you think is the werewolf.""" 
-
-        response = self.openai_client.chat.completions.create(
-            model=self.llm_config["llm_model_name"],
-            messages=[
-                {
-                    "role": "system",
-                    "content": specific_prompt
-                },
-                {"role": "user", "content": message}
-            ],
-        )
-
-        return response.choices[0].message.content
-    
-    def _get_vote_response(self, message):
-        specific_prompt = """Use the game history to vote for who you think is the werewolf. You must vote for someone, if you refuse to vote you will be penalized.""" 
-
-        response = self.openai_client.chat.completions.create(
-            model=self.llm_config["llm_model_name"],
-            messages=[
-                {
-                    "role": "system",
-                    "content": specific_prompt
-                },
-                {"role": "user", "content": message}
-            ],
-        )
-
-        return response.choices[0].message.content

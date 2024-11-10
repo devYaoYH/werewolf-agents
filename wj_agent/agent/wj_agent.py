@@ -4,6 +4,7 @@ from agent.players.wolf import Wolf
 from agent.players.doctor import Doctor
 from agent.players.seer import Seer
 from agent.players.player import Player
+from agent.players.game_state import GameState
 
 import os,json,re
 import asyncio
@@ -62,12 +63,13 @@ class WJAgent(IReactiveAgent):
         self.GAME_CHANNEL = GAME_CHANNEL
         self.config = config
 
+        self.role = None
         self.villager: Villager = None
         self.wolf: Wolf = None
         self.doctor: Doctor = None
         self.seer: Seer = None
 
-        self.role = None
+        self.process_message = False
 
         self.llm_config = self.sentient_llm_config["config_list"][0]
         self.openai_client = OpenAI(
@@ -88,38 +90,66 @@ class WJAgent(IReactiveAgent):
     )
 
     async def async_notify(self, message: ActivityMessage):
+        
+        if message.header.channel == self.GAME_CHANNEL and message.header.sender == self.MODERATOR_NAME and not self.game_intro:
+            #game intro
+            self.game_intro = message.content.text
+        elif not self.villager:
+            self.role = self.find_my_role(message)
+            logger.info(f"Role found for user {self._name}: {self.role}")
+            self.villager = Villager(self._name, self._description, self.config, self.model, self.openai_client)
+            if self.role == "seer":
+                self.seer = Seer(self._name, self._description, self.config, self.model, self.openai_client)
+            elif self.role == "doctor":
+                self.doctor = Doctor(self._name, self._description, self.config, self.model, self.openai_client)
+            else:
+                self.wolf = Wolf(self._name, self._description, self.config, self.model, self.openai_client)
+        else:
 
-        if message.header.channel_type == MessageChannelType.DIRECT:
-            
-            if message.header.sender == self.MODERATOR_NAME:
+            logger.info(f"ASYNC NOTIFY called with message: {message}")
+            logger.info(f"villager game_history: {self.villager.game_history}")
+            if self.seer:
+                logger.info(f"seer game_history: {self.seer.game_history}")
+            if self.doctor:
+                logger.info(f"doctor game_history: {self.doctor.game_history}")
+            if self.wolf:
+                logger.info(f"wolf game_history: {self.wolf.game_history}")
+            logger.info("<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>")
 
-                if not self.villager:
-                    self.role = self.find_my_role(message)
-                    logger.info(f"Role found for user {self._name}: {self.role}")
-                    self.villager = Villager(self._name, self._description, self.config, self.model, self.openai_client)
-                    if self.role == "seer":
-                        self.seer = Seer(self._name, self._description, self.config, self.model, self.openai_client)
-                    elif self.role == "doctor":
-                        self.doctor = Doctor(self._name, self._description, self.config, self.model, self.openai_client)
+
+            if message.header.channel_type == MessageChannelType.GROUP:
+                if message.header.channel == self.GAME_CHANNEL:
+                    if message.header.sender == self.MODERATOR_NAME:
+                        if message.content.text.lower().startswith("day start"):
+                            self.process_message = True
+                        elif message.content.text.lower().startswith("day consensus"):
+                            self.process_message = False
+                        await self.villager.add_to_game_history(message)
                     else:
-                        self.wolf = Wolf(self._name, self._description, self.config, self.model, self.openai_client)
-                else:
+                        if not self.process_message:
+                            await self.villager.add_to_game_history(message)
+                        elif self.process_message:
+                            await self.villager.process_and_add_to_game_history(message, message.header.sender)
+                elif message.header.channel == self.WOLFS_CHANNEL:
+                    await self.wolf.add_to_game_history(message)
+            
+            elif message.header.channel_type == MessageChannelType.DIRECT:
+                
+                if message.header.sender == self.MODERATOR_NAME:
+
                     """ only seer and doctor can be notified by the moderator directly after getting their roles """
                     if self.role == "seer":
-                        await self.seer.async_notify_direct_message(message)
+                        await self.seer.add_to_game_history(message)
                     elif self.role == "doctor":
-                        await self.doctor.async_notify_direct_message(message)
+                        await self.doctor.add_to_game_history(message)
                     else:
                         logger.error(f"User {self._name} is not a seer or doctor, but the moderator is sending them a direct message, message: {message}")
-
-        else:
-            if message.header.channel == self.GAME_CHANNEL and message.header.sender == self.MODERATOR_NAME and not self.game_intro:
-                self.game_intro = message.content.text
-            else:
-                if message.header.channel == self.WOLFS_CHANNEL:
-                    await self.wolf.async_notify(message)
                 else:
-                    await self.villager.async_notify_group_message(message)
+                    #You should not recive any direct message from other players
+                    pass
+
+            else:
+                logger.error(f"Unknown message channel type: {message.header.channel_type}")
 
     def find_my_role(self, message):
         response = self.openai_client.chat.completions.create(
@@ -151,6 +181,15 @@ class WJAgent(IReactiveAgent):
 
     async def async_respond(self, message: ActivityMessage):
         logger.info(f"ASYNC RESPOND called with message: {message}")
+        logger.info(f"villager game_history: {self.villager.game_history}")
+        if self.seer:
+            logger.info(f"seer game_history: {self.seer.game_history}")
+        if self.doctor:
+            logger.info(f"doctor game_history: {self.doctor.game_history}")
+        if self.wolf:
+            logger.info(f"wolf game_history: {self.wolf.game_history}")
+
+        logger.info("<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>")
 
         if message.header.channel_type == MessageChannelType.DIRECT and message.header.sender == self.MODERATOR_NAME:
          #   self.direct_messages[message.header.sender].append(message.content.text)

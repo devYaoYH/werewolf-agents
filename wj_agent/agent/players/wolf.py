@@ -17,38 +17,38 @@ class Wolf(Player):
     1. Blend in with villagers during day discussions.
     2. Coordinate with other werewolves to choose a target.
     3. Pay attention to the seer and doctor's potential actions.
-    4. Defend yourself if accused, but don't be too aggressive."""
+    4. Defend yourself if accused, but don't be too aggressive.
+    
+    Given the game history, you are to pick someone to kill."""
+
 
     def __init__(self, name: str, description: str, config: dict, model, openai_client):
         super().__init__(name, description, config, model, openai_client)
-
-
-    async def async_notify(self, message: ActivityMessage):
-        self.game_history.append(f"[From - {message.header.sender}| {message.header.channel}]: {message.content.text}")
 
     async def async_respond(self, message: ActivityMessage, villagers_game_history: list):
         """
         Should never be a group message, only direct messages
         """
 
-        # system prompt
-        system_prompt = """you are a wolf, you are given the game history, and you are to suggest someone to kill.""" 
-
-        # context
-        self.async_notify(message)
-        context = f"villager game history: {villagers_game_history}, wolf game history: {self.game_history}"
+        response = await self.get_wolf_guess(message, villagers_game_history)
+        return ActivityResponse(response=response)
+    
+    async def get_wolf_guess(self, message: ActivityMessage, villagers_game_history: list):
 
         response = self.openai_client.chat.completions.create(
             model=self.model,
             messages=[
                 {
                     "role": "system",
-                    "content": system_prompt
+                    "content": self.WOLF_PROMPT
                 },
-                {"role": "user", "content": context}
+                {"role": "user", "content": "the following is the game history:"},
+                {"role": "user", "content": "\n".join(villagers_game_history)},
+                {"role": "user", "content": "the following is wolf information:"},
+                {"role": "user", "content": "\n".join(self.game_history)},
+                {"role": "user", "content": "given the game history, and you are to pick someone to kill, you must pick someone, if you refuse to pick someone you will be penalized."},
+                {"role": "user", "content": message.content.text}
             ],
         )
 
-        response_text = response.choices[0].message.content
-        return ActivityResponse(response=response_text)
-    
+        return response.choices[0].message.content
