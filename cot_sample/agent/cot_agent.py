@@ -107,7 +107,7 @@ class CoTAgent(IReactiveAgent):
         self.game_intro = None
         # Belief Updates Variables
         self.game_players = set() # list of other players
-        self.game_wolfs = set()
+        self.game_alive_players = []
         self.num_game_messages = 0
         self.consensus_gamma = 0.9 # Score decay
         self.consensus_self_discount = 0.1 # Discount own defense
@@ -182,7 +182,7 @@ Extract all information about {player_name} and provide a score for this message
             if not message.header.sender == self.MODERATOR_NAME:
                 self.game_players.add(message.header.sender)
             if message.header.channel == self.WOLFS_CHANNEL and message.header.sender == self.MODERATOR_NAME:
-                self.game_alive_players.update(self._init_extract_player_names(message.content.text))
+                self.game_alive_players = self._init_extract_player_names(message.content.text)
             for player in self.game_players:
                 self._update_consensus_score(player, message.content.text, message.header.sender)
             group_messages = self.group_channel_messages.get(message.header.channel, [])
@@ -409,7 +409,9 @@ Based on your thoughts, the current situation, and your reflection on the initia
     def _get_response_for_common_vote(self, message):
         # Implement deterministic voting
         if self.role == WOLF:
-
+            player = sorted([(self.consensus[player], player) for player in self.game_alive_players], reverse=True)[0][1]
+        else:
+            
         return random.choice(players)
 
 
