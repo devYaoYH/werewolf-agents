@@ -41,7 +41,7 @@ class Villager(Player):
                     "role": "system",
                     "content": specific_prompt
                 },
-                {"role": "user", "content": self.game_history},
+                {"role": "user", "content": ', '.join(self.game_history)},
                 {"role": "user", "content": "Use the game history to vote for who you think is the werewolf. You must vote for someone, if you refuse to vote you will be penalized."},
                 {"role": "user", "content": message.content.text}
             ],

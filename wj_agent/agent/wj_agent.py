@@ -94,7 +94,8 @@ class WJAgent(IReactiveAgent):
         if message.header.channel == self.GAME_CHANNEL and message.header.sender == self.MODERATOR_NAME and not self.game_intro:
             #game intro
             self.game_intro = message.content.text
-        elif not self.villager:
+
+        if message.header.channel_type == MessageChannelType.DIRECT and message.header.sender == self.MODERATOR_NAME and not self.villager:
             self.role = self.find_my_role(message)
             logger.info(f"Role found for user {self._name}: {self.role}")
             self.villager = Villager(self._name, self._description, self.config, self.model, self.openai_client)
@@ -104,8 +105,8 @@ class WJAgent(IReactiveAgent):
                 self.doctor = Doctor(self._name, self._description, self.config, self.model, self.openai_client)
             else:
                 self.wolf = Wolf(self._name, self._description, self.config, self.model, self.openai_client)
-        else:
-
+        
+        if self.villager:
             logger.info(f"ASYNC NOTIFY called with message: {message}")
             logger.info(f"villager game_history: {self.villager.game_history}")
             if self.seer:
