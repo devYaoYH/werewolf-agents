@@ -68,7 +68,7 @@ class Doctor(Player):
                 {"role": "user", "content": "\n".join(villagers_game_history)},
                 {"role": "user", "content": "the following is doctor save: make sure to save a villager!"},
                 {"role": "user", "content": "\n".join(self.game_history)},
-                {"role": "user", "content": "given the game history,and a log of actual player and their roles, if u know who are werewolves and are alive, you must pick one of them. u must pick someone. if you refuse to pick someone you will be penalized."},
+                {"role": "user", "content": "given the game history,and a log of actual player and their roles, u are to save someone, pick the person whose least likely to be a werewolf. u must pick someone. if you refuse to pick someone you will be penalized."},
                 {"role": "user", "content": message.content.text}
             ],
         )
