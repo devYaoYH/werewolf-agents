@@ -25,7 +25,14 @@ class Villager(Player):
 
 
     async def async_vote(self):
-        return random.choice(self.agent.game_alive_players)
+        game_alive_players = self.agent.game_players - self.agent.game_eliminated_players
+        game_alive_players.remove(self.agent._name)
+        chosen_player = random.choice(list(game_alive_players))
+        wolf_score, player = sorted([(self.agent.consensus[player_name], player_name) for player_name in game_alive_players], reverse=True)
+        if len(game_alive_players) > 0:
+            logger.info(f"Voting for {player} | {wolf_score:.5f}")
+            chosen_player = player
+        return f"I vote to eliminate {player}"
 
 
     async def async_respond(self, message: ActivityMessage):
@@ -35,7 +42,7 @@ class Villager(Player):
 
 #        logger.info(f"ASYNC RESPOND called with message: {message}")
 
-        if message.content.text.lower().strip().startsWith("day vote"):
+        if message.content.text.lower().strip().startswith("day vote"):
             return self.async_vote(self)
 
 

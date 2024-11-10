@@ -85,7 +85,8 @@ class WJAgent(IReactiveAgent):
 
         # Overall state
         self.game_players = set() # list of other players
-        self.game_alive_players = []
+        self.game_alive_humans = []
+        self.game_eliminated_players = set()
         self.known_player_roles = dict()
 
         # Belief Updates Variables
@@ -146,6 +147,14 @@ Extract all information about {player_name} and provide a score for this message
     def _decay_consensus_score(self):
         for k in self.consensus:
             self.consensus[k] *= self.consensus_gamma
+
+    def _update_alive_players(self, message):
+        pattern = r"'(.*?)'"
+        match = re.search(pattern, message)
+
+        if match:
+            eliminated_player = match.group(1)
+            self.game_eliminated_players.add(eliminated_player)
     
     @retry(
         retry=retry_if_exception_type((openai.InternalServerError, RateLimitError)),
@@ -187,9 +196,12 @@ Extract all information about {player_name} and provide a score for this message
                 if message.header.channel == self.GAME_CHANNEL:
                     if message.header.sender == self.MODERATOR_NAME:
                         if message.content.text.lower().startswith("day start"):
+                            self._update_alive_players(message.content.text)
                             self.process_message = True
                         elif message.content.text.lower().startswith("day consensus"):
                             self.process_message = False
+                        elif message.content.text.lower().startswith("day end"):
+                            self._update_alive_players(message.content.text)
                         await self.villager.add_to_game_history(message)
                     else:
                         if not self.process_message:
@@ -224,7 +236,7 @@ Extract all information about {player_name} and provide a score for this message
             if message.header.sender != self.MODERATOR_NAME:
                 self.game_players.add(message.header.sender)
             if message.header.channel == self.WOLFS_CHANNEL and message.header.sender == self.MODERATOR_NAME:
-                self.game_alive_players = self._init_extract_player_names(message.content.text)
+                self.game_alive_humans = self._init_extract_player_names(message.content.text)
             for player in self.game_players:
                 self._update_consensus_score(player, message.content.text, message.header.sender)
 
