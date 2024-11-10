@@ -297,7 +297,10 @@ Extract all information about {player_name} and provide a score for this message
         elif message.header.channel_type == MessageChannelType.GROUP:
 
             if message.header.channel == self.GAME_CHANNEL:
-                response_message = await self.villager.async_respond(message)
+                if self.role == "seer":
+                    response_message = await self.seer.async_respond(message, self.villager.game_history)
+                else:
+                    response_message = await self.villager.async_respond(message)
             elif message.header.channel == self.WOLFS_CHANNEL:
                 response_message = await self.wolf.async_respond(message, self.villager.game_history)
             

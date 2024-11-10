@@ -28,7 +28,11 @@ class Seer(Player):
         Should never be a group message, only direct messages
         """
 
-        response = await self.get_seer_guess(message, villagers_game_history)
+        if message.content.text.lower().startswith("seer guess:"):
+            response = await self.get_seer_guess(message, villagers_game_history)
+        else:
+            response = await self.seer_response(message, villagers_game_history)
+
         return ActivityResponse(response=response)
     
     async def get_seer_guess(self, message: ActivityMessage, villagers_game_history: list):
@@ -49,4 +53,27 @@ class Seer(Player):
             ],
         )
 
-        return response.choices[0].message.content
+    async def seer_response(self, message: ActivityMessage, villagers_game_history: list):
+
+        PROMPT = """You are a seer in a game of Werewolf. Your goal is to identify and eliminate the werewolves. Consider the following:
+        
+        You are given the villager game history, and a log of actual player and their roles, if u know who are werewolves and are alive, you must pick one of them."""
+
+        response = self.openai_client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": PROMPT
+                },
+                {"role": "user", "content": "the following is the game history:"},
+                {"role": "user", "content": "\n".join(villagers_game_history)},
+                {"role": "user", "content": "the following is seer information: USE THIS INFORMATION WISELY, IT IS THE SOURCE OF TRUTH"},
+                {"role": "user", "content": "\n".join(self.game_history)},
+                {"role": "user", "content": "given the game history,and a log of actual player and their roles, if u know who are werewolves and are alive, you must pick one of them. u must pick someone. if you refuse to pick someone you will be penalized."},
+                {"role": "user", "content": message.content.text}
+            ],
+        )
+
+        response_text = response.choices[0].message.content
+        return ActivityResponse(response=response_text)
