@@ -42,6 +42,11 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+VILLAGER = 'villager'
+SEER = 'seer'
+DOCTOR = 
+WOLF
+
 class CoTAgent(IReactiveAgent):
     # input -> thoughts -> init action -> reflection -> final action
 
@@ -100,6 +105,66 @@ class CoTAgent(IReactiveAgent):
             f"WerewolfAgent initialized with name: {name}, description: {description}, and config: {config}"
         )
         self.game_intro = None
+        # Belief Updates Variables
+        self.game_players = set() # list of other players
+        self.game_wolfs = set()
+        self.num_game_messages = 0
+        self.consensus_gamma = 0.9 # Score decay
+        self.consensus_self_discount = 0.1 # Discount own defense
+        # {player_name: wolf_consensus_val in (-1: human | 1: wolf)
+        self.consensus = dict()
+
+    def _init_extract_player_names(self, message):
+        # Find the list using regex
+        match = re.search(r"\[(.*?)\]", message)
+
+        if match:
+            player_list = eval(match.group(1))
+            logger.info(player_list)
+            return player_list
+        else:
+            logger.info("List not found")
+            return []
+
+
+    def _get_sentiment_score(self, player_name, message):
+        """Return a number between -1 to 1."""
+        prompt = f"""
+Extract all information about {player_name} and provide a score for this message between -1 to 1 where -1 represents strongly supporting {player_name} as a human and 1 strongly accusing {player_name} to be a wolf. Provide your output as a single number.
+
+{message}
+        """
+
+        response = self.openai_client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": f"You are a analyst of a Werewolf game as described by {self.game_intro}"},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        sentiment_response = response.choices[0].message.content
+
+        logger.info(f"Sentiment Score for {player_name}: {sentiment_response}")
+
+        pattern = r"\d+\.\d+"
+        matches = re.findall(pattern, sentiment_response)
+
+        if len(matches) > 0:
+            return float(matches[0])
+        else:
+            return 0
+
+    def _update_consensus_score(self, player_name, message, message_sender):
+        self.num_game_messages += 1
+        cur_score = self.consensus[player_name]
+        new_score = self._get_sentiment_score(player_name, message)
+        if message_sender == player_name:
+            new_score *= self.consensus_self_discount
+        self.consensus[player_name] = (cur_score*(self.num_game_messages-1) + new_score )/self.num_game_messages
+
+    def _decay_consensus_score(self):
+        for k in self.consensus:
+            self.consensus[k] *= self.consensus_gamma
 
     async def async_notify(self, message: ActivityMessage):
         logger.info(f"ASYNC NOTIFY called with message: {message}")
@@ -112,6 +177,14 @@ class CoTAgent(IReactiveAgent):
                 self.role = self.find_my_role(message)
                 logger.info(f"Role found for user {self._name}: {self.role}")
         else:
+            # Update the list of players in the game
+            # TODO: Remove players who are eliminated
+            if not message.header.sender == self.MODERATOR_NAME:
+                self.game_players.add(message.header.sender)
+            if message.header.channel == self.WOLFS_CHANNEL and message.header.sender == self.MODERATOR_NAME:
+                self.game_alive_players.update(self._init_extract_player_names(message.content.text))
+            for player in self.game_players:
+                self._update_consensus_score(player, message.content.text, message.header.sender)
             group_messages = self.group_channel_messages.get(message.header.channel, [])
             group_messages.append((message.header.sender, message.content.text))
             self.group_channel_messages[message.header.channel] = group_messages
@@ -119,6 +192,7 @@ class CoTAgent(IReactiveAgent):
             # if this is the first message in the game channel, the moderator is sending the rules, store them
             if message.header.channel == self.GAME_CHANNEL and message.header.sender == self.MODERATOR_NAME and not self.game_intro:
                 self.game_intro = message.content.text
+                self.game_players.update(self._init_extract_player_names(self.game_intro))
         logger.info(f"message stored in messages {message}")
 
     def get_interwoven_history(self, include_wolf_channel=False):
@@ -178,7 +252,11 @@ class CoTAgent(IReactiveAgent):
                 (message.header.sender, message.content.text)
             )
             if message.header.channel == self.GAME_CHANNEL:
-                response_message = self._get_discussion_message_or_vote_response_for_common_room(message)
+                if message.header.sender == self.MODERATOR_NAME:
+                    response_message = self._get_response_for_common_vote(message)
+                    logger.info("I'm getting pinged to vote")
+                else:
+                    response_message = self._get_discussion_message_for_common_room(message)
             elif message.header.channel == self.WOLFS_CHANNEL:
                 response_message = self._get_response_for_wolf_channel_to_kill_villagers(message)
             self.game_history.append(f"[From - {message.header.sender}| To - {self._name} (me)| Group Message in {message.header.channel}]: {message.content.text}")
@@ -327,7 +405,15 @@ Based on your thoughts, the current situation, and your reflection on the initia
         action = self._get_final_action(self.DOCTOR_PROMPT, game_situation, inner_monologue, "choice of player to protect")        
         return action
 
-    def _get_discussion_message_or_vote_response_for_common_room(self, message):
+
+    def _get_response_for_common_vote(self, message):
+        # Implement deterministic voting
+        if self.role == WOLF:
+
+        return random.choice(players)
+
+
+    def _get_discussion_message_for_common_room(self, message):
         role_prompt = getattr(self, f"{self.role.upper()}_PROMPT", self.VILLAGER_PROMPT)
         game_situation = self.get_interwoven_history()
         
