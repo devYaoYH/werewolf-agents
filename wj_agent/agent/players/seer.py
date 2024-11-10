@@ -15,10 +15,8 @@ MODEL_NAME = "Llama31-70B-Instruct"
 class Seer(Player):
 
     SEER_PROMPT = """You are a seer in a game of Werewolf. Your goal is to identify and eliminate the werewolves. Consider the following:
-    1. Observe player behavior and voting patterns.
-    2. Share your suspicions and listen to others.
-    3. Be cautious of false accusations.
-    4. Try to identify the seer and doctor to protect them."""
+    
+    You are given the game history, and you are to pick someone to investigate."""
 
     def __init__(self, name: str, description: str, config: dict, model, openai_client):
         super().__init__(name, description, config, model, openai_client)
@@ -30,20 +28,25 @@ class Seer(Player):
         Should never be a group message, only direct messages
         """
 
-        system_prompt = """you are the seer, you are given the game history, and you are to suggest who you think is the werewolf.""" 
-        context = f"villager game history: {", ".join(villagers_game_history)}, seer game history: {",".join(self.game_history)}"
+        response = await self.get_seer_guess(message, villagers_game_history)
+        return ActivityResponse(response=response)
+    
+    async def get_seer_guess(self, message: ActivityMessage, villagers_game_history: list):
 
         response = self.openai_client.chat.completions.create(
             model=self.model,
             messages=[
                 {
                     "role": "system",
-                    "content": system_prompt
+                    "content": self.SEER_PROMPT
                 },
-                {"role": "user", "content": context}
+                {"role": "user", "content": "the following is the game history:"},
+                {"role": "user", "content": "\n".join(villagers_game_history)},
+                {"role": "user", "content": "the following is seer information:"},
+                {"role": "user", "content": "\n".join(self.game_history)},
+                {"role": "user", "content": "given the game history, and you are to pick someone to investigate, you must pick someone, if you refuse to pick someone you will be penalized."},
+                {"role": "user", "content": message.content.text}
             ],
         )
- 
-        response_text = response.choices[0].message.content
-        return ActivityResponse(response=response_text)
-    
+
+        return response.choices[0].message.content
