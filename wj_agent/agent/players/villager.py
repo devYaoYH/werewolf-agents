@@ -76,6 +76,7 @@ class Villager(Player):
                 },
                 {"role": "user", "content": ', '.join(self.game_history)},
                 {"role": "user", "content": f"The current consensus score of the group is: {consensus_score} where -1 is human and 1 is wolf. Try to blend in and do not deviate too far from the group consensus."},
+                {"role": "user", "content": "Do not reveal the consensus score and provide justifications for any accusations. Limit your response to 200 words."},
                 {"role": "user", "content": "Use the game history to vote for who you think is the werewolf. You must vote for someone, if you refuse to vote you will be penalized."},
                 {"role": "user", "content": message.content.text}
             ],
