@@ -90,7 +90,7 @@ class WJAgent(IReactiveAgent):
         self.known_player_roles = dict()
 
         # Belief Updates Variables
-        self.num_game_messages = 0
+        self.num_game_messages = defaultdict(int)
         self.consensus_gamma = 0.9 # Score decay
         self.consensus_self_discount = 0.1 # Discount own defense
         # {player_name: wolf_consensus_val in (-1: human | 1: wolf)
@@ -139,12 +139,13 @@ Extract all information about {player_name} and provide a score for this message
             return 0
 
     def _update_consensus_score(self, player_name, message, message_sender):
-        self.num_game_messages += 1
         cur_score = self.consensus[player_name]
         new_score = self._get_sentiment_score(player_name, message)
-        if message_sender == player_name:
-            new_score *= self.consensus_self_discount
-        self.consensus[player_name] = (cur_score*(self.num_game_messages-1) + new_score )/self.num_game_messages
+        if new_score != 0: # only update if it is relevant
+            self.num_game_messages[player_name] += 1
+            if message_sender == player_name:
+                new_score *= self.consensus_self_discount
+            self.consensus[player_name] = (cur_score*(self.num_game_messages[player_name]-1) + new_score )/self.num_game_messages[player_name]
 
     def _decay_consensus_score(self):
         for k in self.consensus:
