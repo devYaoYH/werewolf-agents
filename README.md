@@ -16,7 +16,7 @@ Keep a running consensus score of who the day-time players are mentioning is the
 ### Consensus Scoring
 
 -   Use llm to extract a sentiment analysis score between [-1, 1] for a message and player pair. I.e. determine if the (player) in the given (message) sounds more like a human (-1) or wolf (1).
--   Accumulate this in a running average sum with the denominator being the number of messages that has a non-zero score for the (player).
+-   Accumulate this in a running average sum with the denominator being the number of messages sent into the day channel.
 -   Decay the consensus score by gamma=0.9 each round (to place more weight on recent messages).
 -   The 'consensus score' is calculated for each player and used to vote.
 
