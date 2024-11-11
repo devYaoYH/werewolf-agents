@@ -64,10 +64,10 @@ class Player:
     
     def process_player_message(self, message: str):
         system_prompt = f"""You are an expert at analysis, you are given an input message "<><><><><><><><>THE INPUT MESSAGE IS STARTING<><><><><><><><>" and ends with "<><><><><><><><>THE INPUT MESSAGE IS ENDING<><><><><><><><>". 
-        Your task is to identify the players who are being accused of being a werewolf, return the accused players as a string separated by ","
+        Your task is to identify the players who are being accused of or suspected to being a werewolf, return a list of the accused or suspected players separated by ","
 
         EXPECTED_OUTPUT_FORMAT:
-        "<player1>,<player2>,<player3>"
+        "The accused wolves are: <player1>,<player2>,<player3>"
         """
 
         logger.info(f"Processing player message: {message}")

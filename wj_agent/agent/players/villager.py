@@ -8,7 +8,23 @@ from sentient_campaign.agents.v1.message import (
 )
 
 from agent.players.player import Player
+import random
 
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+logger = logging.getLogger("demo_agent")
+level = logging.DEBUG
+logger.setLevel(level)
+logger.propagate = True
+handler = logging.StreamHandler()
+handler.setLevel(level)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 MODEL_NAME = "Llama31-70B-Instruct"
 
@@ -26,13 +42,13 @@ class Villager(Player):
 
     async def async_vote(self):
         game_alive_players = self.agent.game_players - self.agent.game_eliminated_players
-        game_alive_players.remove(self.agent._name)
-        chosen_player = random.choice(list(game_alive_players))
-        wolf_score, player = sorted([(self.agent.consensus[player_name], player_name) for player_name in game_alive_players], reverse=True)
-        if len(game_alive_players) > 0:
-            logger.info(f"Voting for {player} | {wolf_score:.5f}")
-            chosen_player = player
-        return f"I vote to eliminate {chosen_player}"
+        game_alive_players.discard(self.agent._name)
+        sorted_players = sorted([(self.agent.consensus[player_name], player_name) for player_name in game_alive_players], reverse=True)
+        wolf_score, player = sorted_players[0]
+
+        logger.info(f"BELIEF STATE PRIOR TO VOTE: {sorted_players}")
+
+        return ActivityResponse(response=f"I vote to eliminate {player}")
 
 
     async def async_respond(self, message: ActivityMessage):
@@ -43,7 +59,7 @@ class Villager(Player):
 #        logger.info(f"ASYNC RESPOND called with message: {message}")
 
         if message.content.text.lower().strip().startswith("day vote"):
-            return self.async_vote()
+            return await self.async_vote()
 
 
         specific_prompt = """You are a villager in a conversational game of Werewolf, also known as Mafia. You are given the sequence of events in the game, and you are use the information to select who you think is the werewolf.""" 
@@ -56,6 +72,7 @@ class Villager(Player):
                     "content": specific_prompt
                 },
                 {"role": "user", "content": ', '.join(self.game_history)},
+                {"role": "user": "content": f"The current consensus score of the group is: {[(self.agent.consensus[player_name], player_name) for player_name in game_alive_players]} where -1 is human and 1 is wolf. Try to blend in and do not deviate too far from the group consensus."}
                 {"role": "user", "content": "Use the game history to vote for who you think is the werewolf. You must vote for someone, if you refuse to vote you will be penalized."},
                 {"role": "user", "content": message.content.text}
             ],

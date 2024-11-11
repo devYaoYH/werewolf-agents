@@ -5,7 +5,7 @@ from agent.players.doctor import Doctor
 from agent.players.seer import Seer
 from agent.players.player import Player
 from agent.players.game_state import GameState
-from agent.players.helper_functions import get_players, get_role, get_dead_player
+
 import os,json,re
 import asyncio
 import logging
@@ -116,7 +116,7 @@ class WJAgent(IReactiveAgent):
 
 {message}
 
-Extract all information about {player_name} and provide a score for this message between -1 to 1 where -1 represents strongly supporting {player_name} as a human and 1 strongly accusing {player_name} to be a wolf. Provide your output as a single number.
+Extract all information about {player_name} and provide a score for this message between -1 to 1 where -1 represents strongly supporting {player_name} as a human and 1 strongly accusing {player_name} to be a wolf. Do not use a numbered list. Provide your output as a single number.
         """
 
         response = self.openai_client.chat.completions.create(
@@ -150,7 +150,7 @@ Extract all information about {player_name} and provide a score for this message
         for k in self.consensus:
             self.consensus[k] *= self.consensus_gamma
 
-    def _update_alive_players(self, message):
+    def _update_eliminated_players(self, message):
         pattern = r"'(.*?)'"
         match = re.search(pattern, message)
 
@@ -198,17 +198,12 @@ Extract all information about {player_name} and provide a score for this message
                 if message.header.channel == self.GAME_CHANNEL:
                     if message.header.sender == self.MODERATOR_NAME:
                         if message.content.text.lower().startswith("day start"):
-                            self._update_alive_players(message.content.text)
+                            self._update_eliminated_players(message.content.text)
                             self.process_message = True
                         elif message.content.text.lower().startswith("day consensus"):
                             self.process_message = False
                         elif message.content.text.lower().startswith("day end"):
-
-                            self._update_alive_players(message.content.text)
-
-                            player,role = get_role(message.content.text)
-                            self.known_player_roles[player] = role
-
+                            self._update_eliminated_players(message.content.text)
                         await self.villager.add_to_game_history(message)
                     else:
                         if not self.process_message:
@@ -237,14 +232,15 @@ Extract all information about {player_name} and provide a score for this message
                 logger.error(f"Unknown message channel type: {message.header.channel_type}")
 
         # Belief state updates
-        if message.header.channel_type != MessageChannelType.DIRECT and message.header.sender != self.MODERATOR_NAME:
+        if message.header.channel_type != MessageChannelType.DIRECT and message.header.channel == self.GAME_CHANNEL and message.header.sender != self.MODERATOR_NAME:
             # Update the list of players in the game
-            # TODO: Remove players who are eliminated
             self.game_players.add(message.header.sender)
-            if message.header.channel == self.WOLFS_CHANNEL and message.header.sender == self.MODERATOR_NAME:
-                self.game_alive_humans = self._init_extract_player_names(message.content.text)
-            for player in self.game_players:
+            game_alive_players = self.game_players - self.game_eliminated_players
+            for player in game_alive_players:
                 self._update_consensus_score(player, message.content.text, message.header.sender)
+        # Alive humans update
+        if message.header.channel == self.WOLFS_CHANNEL and message.header.sender == self.MODERATOR_NAME:
+            self.game_alive_humans = self._init_extract_player_names(message.content.text)
 
     def find_my_role(self, message):
         response = self.openai_client.chat.completions.create(
