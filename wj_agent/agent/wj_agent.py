@@ -141,10 +141,9 @@ Extract all information about {player_name} and provide a score for this message
     def _update_consensus_score(self, player_name, message, message_sender):
         cur_score = self.consensus[player_name]
         new_score = self._get_sentiment_score(player_name, message)
-        if new_score != 0: # only update if it is relevant
-            if message_sender == player_name:
-                new_score *= self.consensus_self_discount
-            self.consensus[player_name] = (cur_score*(self.num_game_messages-1) + new_score )/self.num_game_messages
+        if message_sender == player_name:
+            new_score *= self.consensus_self_discount
+        self.consensus[player_name] = (cur_score*(self.num_game_messages-1) + new_score )/self.num_game_messages
 
     def _decay_consensus_score(self):
         for k in self.consensus:
