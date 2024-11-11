@@ -64,6 +64,9 @@ class Villager(Player):
 
         specific_prompt = """You are a villager in a conversational game of Werewolf, also known as Mafia. You are given the sequence of events in the game, and you are use the information to select who you think is the werewolf.""" 
 
+        game_alive_players = self.agent.game_players - self.agent.game_eliminated_players
+        consensus_score = [(self.agent.consensus[player_name], player_name) for player_name in game_alive_players]
+
         response = self.openai_client.chat.completions.create(
             model=self.model,
             messages=[
@@ -72,7 +75,7 @@ class Villager(Player):
                     "content": specific_prompt
                 },
                 {"role": "user", "content": ', '.join(self.game_history)},
-                {"role": "user": "content": f"The current consensus score of the group is: {[(self.agent.consensus[player_name], player_name) for player_name in game_alive_players]} where -1 is human and 1 is wolf. Try to blend in and do not deviate too far from the group consensus."}
+                {"role": "user", "content": f"The current consensus score of the group is: {consensus_score} where -1 is human and 1 is wolf. Try to blend in and do not deviate too far from the group consensus."},
                 {"role": "user", "content": "Use the game history to vote for who you think is the werewolf. You must vote for someone, if you refuse to vote you will be penalized."},
                 {"role": "user", "content": message.content.text}
             ],
